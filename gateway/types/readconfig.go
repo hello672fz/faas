@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -69,6 +70,19 @@ func (ReadConfig) Read(hasEnv HasEnv) (*GatewayConfig, error) {
 		cfg.FunctionsProviderURL, err = url.Parse(hasEnv.Getenv("functions_provider_url"))
 		if err != nil {
 			return nil, fmt.Errorf("if functions_provider_url is provided, then it should be a valid URL, error: %s", err)
+		}
+	}
+
+	if len(hasEnv.Getenv("functions_provider_urls")) > 0 {
+		envVar := hasEnv.Getenv("functions_provider_urls")
+		urlStrings := strings.Split(envVar, ",")
+
+		for _, urlString := range urlStrings {
+			parsedURL, err := url.Parse(strings.TrimSpace(urlString))
+			if err != nil {
+				return nil, fmt.Errorf("if functions_provider_url is provided, then it should be a valid URL, error: %s", err)
+			}
+			cfg.FunctionsProviderURLs = append(cfg.FunctionsProviderURLs, parsedURL)
 		}
 	}
 
@@ -183,8 +197,14 @@ type GatewayConfig struct {
 	// URL for alternate functions provider.
 	FunctionsProviderURL *url.URL
 
+	// URL for alternate functions providers.
+	FunctionsProviderURLs []*url.URL
+
 	// URL for alternate function logs provider.
 	LogsProviderURL *url.URL
+
+	// URL for alternate function logs providers.
+	LogsProviderURLs []*url.URL
 
 	// Address of the NATS service. Required for async mode.
 	NATSAddress *string

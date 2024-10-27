@@ -18,6 +18,7 @@ import (
 
 	fhttputil "github.com/openfaas/faas-provider/httputil"
 	"github.com/openfaas/faas/gateway/pkg/middleware"
+	"github.com/openfaas/faas/gateway/policies"
 	"github.com/openfaas/faas/gateway/types"
 )
 
@@ -27,6 +28,51 @@ func MakeForwardingProxyHandler(proxy *types.HTTPClientReverseProxy,
 	baseURLResolver middleware.BaseURLResolver,
 	urlPathTransformer middleware.URLPathTransformer,
 	serviceAuthInjector middleware.AuthInjector) http.HandlerFunc {
+
+	writeRequestURI := false
+	if _, exists := os.LookupEnv("write_request_uri"); exists {
+		writeRequestURI = exists
+	}
+
+	reverseProxy := makeRewriteProxy(baseURLResolver, urlPathTransformer)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		baseURL := baseURLResolver.Resolve(r)
+		originalURL := r.URL.String()
+		requestURL := urlPathTransformer.Transform(r)
+
+		for _, notifier := range notifiers {
+			notifier.Notify(r.Method, requestURL, originalURL, http.StatusProcessing, "started", time.Second*0)
+		}
+
+		start := time.Now()
+
+		statusCode, err := forwardRequest(w, r, proxy.Client, baseURL, requestURL, proxy.Timeout, writeRequestURI, serviceAuthInjector, reverseProxy)
+		if err != nil {
+			log.Printf("error with upstream request to: %s, %s\n", requestURL, err.Error())
+		}
+
+		seconds := time.Since(start)
+
+		for _, notifier := range notifiers {
+			notifier.Notify(r.Method, requestURL, originalURL, statusCode, "completed", seconds)
+		}
+	}
+}
+
+func MakeForwardingProxyHandlers(config *types.GatewayConfig,
+	notifiers []HTTPNotifier,
+	urlPathTransformer middleware.URLPathTransformer,
+	serviceAuthInjector middleware.AuthInjector) http.HandlerFunc {
+
+	nodeIdx := policies.SelectNodeByPolicy(config.FunctionsProviderURLs)
+	proxy := types.NewHTTPClientReverseProxy(config.FunctionsProviderURLs[nodeIdx],
+		config.UpstreamTimeout,
+		config.MaxIdleConns,
+		config.MaxIdleConnsPerHost)
+
+	baseURLResolver := middleware.SingleHostBaseURLResolver{BaseURL: config.FunctionsProviderURL.String()}
 
 	writeRequestURI := false
 	if _, exists := os.LookupEnv("write_request_uri"); exists {

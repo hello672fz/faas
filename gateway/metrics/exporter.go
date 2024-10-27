@@ -119,6 +119,53 @@ func (e *Exporter) StartServiceWatcher(endpointURL url.URL, metricsOptions Metri
 	}()
 }
 
+func (e *Exporter) StartServiceWatchers(endpointURLs []*url.URL, metricsOptions MetricOptions, label string, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	quit := make(chan struct{})
+
+	for _, endpointURL := range endpointURLs {
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+
+					namespaces, err := e.getNamespaces(*endpointURL)
+					if err != nil {
+						log.Printf("Error listing namespaces: %s", err)
+					}
+
+					services := []types.FunctionStatus{}
+
+					// Providers like faasd for instance have no namespaces.
+					if len(namespaces) == 0 {
+						services, err = e.getFunctions(*endpointURL, e.FunctionNamespace)
+						if err != nil {
+							log.Printf("Error getting functions from: %s, error: %s", e.FunctionNamespace, err)
+							continue
+						}
+						e.services = services
+					} else {
+						for _, namespace := range namespaces {
+							nsServices, err := e.getFunctions(*endpointURL, namespace)
+							if err != nil {
+								log.Printf("Error getting functions from: %s, error: %s", e.FunctionNamespace, err)
+								continue
+							}
+							services = append(services, nsServices...)
+						}
+					}
+
+					e.services = services
+
+				case <-quit:
+					return
+				}
+			}
+		}()
+	}
+
+}
+
 func (e *Exporter) getHTTPClient(timeout time.Duration) http.Client {
 
 	return http.Client{
