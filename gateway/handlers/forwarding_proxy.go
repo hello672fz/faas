@@ -72,7 +72,7 @@ func MakeForwardingProxyHandlers(config *types.GatewayConfig,
 		config.MaxIdleConns,
 		config.MaxIdleConnsPerHost)
 
-	baseURLResolver := middleware.SingleHostBaseURLResolver{BaseURL: config.FunctionsProviderURL.String()}
+	baseURLResolver := middleware.SingleHostBaseURLResolver{BaseURL: config.FunctionsProviderURLs[nodeIdx].String()}
 
 	writeRequestURI := false
 	if _, exists := os.LookupEnv("write_request_uri"); exists {
