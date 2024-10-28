@@ -6,6 +6,9 @@
 
 ![img.png](../docs/img.png/)
 
+- Run
+- Access `http://127.0.0.1:8080/ui/`
+
 
 ## Overview
 
