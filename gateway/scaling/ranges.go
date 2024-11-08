@@ -31,6 +31,20 @@ const (
 	ScalingFactorLabel = "com.openfaas.scale.factor"
 )
 
+type ScaleServiceRequest2 struct {
+	ServiceName string                   `json:"serviceName"`
+	Replicas    uint64                   `json:"replicas"`
+	Namespace   string                   `json:"namespace,omitempty"`
+	Image       string                   `json:"image"`
+	EnvProcess  string                   `json:"envProcess,omitempty"`
+	EnvVars     map[string]string        `json:"envVars,omitempty"`
+	Secrets     []string                 `json:"secrets,omitempty"`
+	Limits      *types.FunctionResources `json:"limits,omitempty"`
+	Labels      *map[string]string       `json:"labels,omitempty"`
+	Annotations *map[string]string       `json:"annotations,omitempty"`
+	Checkpoint  uint64                   `json:"checkpoint,omitempty"`
+}
+
 func MakeHorizontalScalingHandler(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -49,7 +63,8 @@ func MakeHorizontalScalingHandler(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		scaleRequest := types.ScaleServiceRequest{}
+		//scaleRequest := types.ScaleServiceRequest{}
+		var scaleRequest ScaleServiceRequest2
 		if err := json.Unmarshal(body, &scaleRequest); err != nil {
 			http.Error(w, "Error unmarshalling request body", http.StatusBadRequest)
 			return
