@@ -172,7 +172,7 @@ func main() {
 
 	faasHandlers.NamespaceListerHandler = handlers.MakeForwardingProxyHandlers(config, forwardingNotifiers, nilURLTransformer, serviceAuthInjector)
 	faasHandlers.NamespaceMutatorHandler = handlers.MakeForwardingProxyHandlers(config, forwardingNotifiers, nilURLTransformer, serviceAuthInjector)
-
+	//function to set newReplicas
 	faasHandlers.Alert = handlers.MakeNotifierWrapper(
 		handlers.MakeAlertHandler(externalServiceQuery, config.Namespace),
 		quietNotifier,
@@ -211,6 +211,7 @@ func main() {
 	prometheusQuery := metrics.NewPrometheusQuery(config.PrometheusHost, config.PrometheusPort, http.DefaultClient, version.BuildVersion())
 	faasHandlers.ListFunctions = metrics.AddMetricsHandler(faasHandlers.ListFunctions, prometheusQuery)
 
+	// adjust replicas and forward it to next.ServeHTTP(w, r)?
 	//faasHandlers.ScaleFunction = scaling.MakeHorizontalScalingHandler(handlers.MakeForwardingProxyHandler(reverseProxy, forwardingNotifiers, urlResolver, nilURLTransformer, serviceAuthInjector))
 	faasHandlers.ScaleFunction = scaling.MakeHorizontalScalingHandler(handlers.MakeForwardingProxyHandlers(config, forwardingNotifiers, nilURLTransformer, serviceAuthInjector))
 
@@ -243,12 +244,13 @@ func main() {
 
 	r := mux.NewRouter()
 	// max wait time to start a function = maxPollCount * functionPollInterval
-
+	//when req's URL match the Path,it will call the fun
 	r.HandleFunc("/function/{name:["+NameExpression+"]+}", functionProxy)
 	r.HandleFunc("/function/{name:["+NameExpression+"]+}/", functionProxy)
 	r.HandleFunc("/function/{name:["+NameExpression+"]+}/{params:.*}", functionProxy)
 
 	r.HandleFunc("/system/info", faasHandlers.InfoHandler).Methods(http.MethodGet)
+	//TODO:try to trigger alert,maybe Pressure test
 	r.HandleFunc("/system/alert", faasHandlers.Alert).Methods(http.MethodPost)
 
 	r.HandleFunc("/system/function/{name:["+NameExpression+"]+}", faasHandlers.FunctionStatus).Methods(http.MethodGet)

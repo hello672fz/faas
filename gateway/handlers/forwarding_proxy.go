@@ -61,6 +61,9 @@ func MakeForwardingProxyHandler(proxy *types.HTTPClientReverseProxy,
 	}
 }
 
+// MakeForwardingProxyHandlers create a proxy function(http.HandlerFunc) that parse req config and forward them to backen service
+//
+//todo:current forward is the faas start with specific url without receiving any reqs
 func MakeForwardingProxyHandlers(config *types.GatewayConfig,
 	notifiers []HTTPNotifier,
 	urlPathTransformer middleware.URLPathTransformer,
